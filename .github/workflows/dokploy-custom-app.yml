@@ -68,6 +68,19 @@ on:
         required: false
         type: string
         default: ""
+    secrets:
+      DOKPLOY_API_TOKEN:
+        description: "Global Dokploy API key"
+        required: true
+      DOKPLOY_COMPOSE_ID:
+        description: "Per-app compose ID"
+        required: true
+      TS_OAUTH_CLIENT_ID:
+        description: "Tailscale OAuth client (tag:ci)"
+        required: true
+      TS_OAUTH_SECRET:
+        description: "Tailscale OAuth secret"
+        required: true
 
 permissions:
   contents: read
