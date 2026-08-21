@@ -38,10 +38,10 @@ concurrency:
 
 jobs:
   deploy:
-    uses: hemanth1986/gha-workflows/.github/workflows/dokploy-custom-app.yml@main
+    uses: innovspatial/gha-workflows/.github/workflows/dokploy-custom-app.yml@main
     with:
       app_host: biometric.innovspatial.app
-      ghcr_image: ghcr.io/hemanth1986/biometric-sync
+      ghcr_image: ghcr.io/innovspatial/biometric-sync
       # Fleet Hetzner runner by default; dispatch can fall back to ubuntu-latest.
       runner: ${{ inputs.runner || 'self-hosted' }}
     secrets: inherit
@@ -76,10 +76,13 @@ GitHub-hosted (metered) capacity. Push/PR-triggered runs simply queue (up to
 24h) while the runner is offline and start when it returns — GitHub has no
 automatic runner failover.
 
-Registration is PER-REPO on personal accounts. Wiring a NEW repo:
-
-1. `bash scripts/add-runner.sh <repo-name>` (in this repo) — ~60 seconds.
-2. Copy the caller template above (it already carries the runner default).
+Runners are ORG-LEVEL (since 2026-08-21): three instances
+(`hetzner-org-{1,2,3}`, dirs `/opt/actions-runner/org-{1,2,3}`) registered
+to the `innovspatial` org. The default org runner group covers every org
+repo, including future ones — a new repo needs NO runner work at all, just
+the caller template above. The four repos still on the personal account
+(AIRulesHub, babykb, carkb, brand-innovspatial) keep their per-repo
+runners.
 
 The workflow skips its Tailscale join step on self-hosted runners
 automatically (the host is already a tailnet member). Full operations doc:

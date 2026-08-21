@@ -11,10 +11,10 @@ name: Dokploy Custom App Deploy (reusable)
 #   on: { push: { branches: [main] } }
 #   jobs:
 #     deploy:
-#       uses: hemanth1986/gha-workflows/.github/workflows/dokploy-custom-app.yml@main
+#       uses: innovspatial/gha-workflows/.github/workflows/dokploy-custom-app.yml@main
 #       with:
 #         app_host: biometric.innovspatial.app
-#         ghcr_image: ghcr.io/hemanth1986/biometric-sync
+#         ghcr_image: ghcr.io/innovspatial/biometric-sync
 #         # Optional, default '.' / 'package.json' — set when sources live in a subdir:
 #         # build_context: ./glue
 #         # version_file: glue/package.json
@@ -40,7 +40,7 @@ on:
         required: true
         type: string
       ghcr_image:
-        description: "Full GHCR image path (no tag). e.g. ghcr.io/hemanth1986/biometric-sync"
+        description: "Full GHCR image path (no tag). e.g. ghcr.io/innovspatial/biometric-sync"
         required: true
         type: string
       contabo_ts_ip:
@@ -69,7 +69,7 @@ on:
         type: string
         default: ""
       runner:
-        description: "runs-on target for the build-and-deploy job. Default is GitHub-hosted; pass 'self-hosted' to run on the fleet's Hetzner runner (unmetered minutes, already inside the tailnet — the Tailscale join step is skipped there automatically). The caller repo must have a registered runner (per-repo on personal accounts)."
+        description: "runs-on target for the build-and-deploy job. Default is GitHub-hosted; pass 'self-hosted' to run on the fleet's Hetzner runner (unmetered minutes, already inside the tailnet — the Tailscale join step is skipped there automatically). Org-level runners cover every org repo automatically."
         required: false
         type: string
         default: "ubuntu-latest"
