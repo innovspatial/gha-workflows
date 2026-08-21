@@ -57,6 +57,18 @@ job timeout four times in one afternoon and burned 1,444 of the month's
 2,000 free Actions minutes, freezing all private-repo CI until the next
 billing cycle.
 
+**Self-hosted runner (unmetered minutes):**
+
+Pass `runner: self-hosted` in the caller's `with:` block to run the job on
+the fleet runner (Hetzner) instead of a GitHub-hosted VM — free minutes, and
+it keeps working while the free-tier quota is exhausted. Registration is
+PER-REPO on personal accounts: a repo needs its own runner instance
+registered before `runner: self-hosted` will schedule. The workflow skips
+its Tailscale join step on self-hosted runners automatically (the host is
+already a tailnet member). Operations + new-repo registration procedure:
+"Self-hosted runner (Hetzner)" in
+`Infra/Runbooks/Deployment/CI-CD-Deploy-Workflow.md`.
+
 **Required secrets in caller repo:**
 
 | Secret | Source |
