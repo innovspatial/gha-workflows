@@ -68,6 +68,11 @@ on:
         required: false
         type: string
         default: ""
+      runner:
+        description: "runs-on target for the build-and-deploy job. Default is GitHub-hosted; pass 'self-hosted' to run on the fleet's Hetzner runner (unmetered minutes, already inside the tailnet — the Tailscale join step is skipped there automatically). The caller repo must have a registered runner (per-repo on personal accounts)."
+        required: false
+        type: string
+        default: "ubuntu-latest"
     secrets:
       DOKPLOY_API_TOKEN:
         description: "Global Dokploy API key"
@@ -88,7 +93,7 @@ permissions:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 30
     concurrency:
       group: deploy-${{ github.repository }}
@@ -172,6 +177,11 @@ jobs:
           echo "✓ Smoke test passed — proceeding to deploy"
 
       - name: Connect to Tailscale
+        # Self-hosted runners live on hosts that are ALREADY tailnet members;
+        # running `tailscale up` there would re-auth the host's tailscaled as
+        # an ephemeral tag:ci node and displace its identity. Join only on
+        # ephemeral GitHub-hosted VMs.
+        if: ${{ runner.environment == 'github-hosted' }}
         uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
