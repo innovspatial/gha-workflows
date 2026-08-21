@@ -15,6 +15,13 @@ name: Build and Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "Fallback: pick ubuntu-latest if the fleet runner is down (uses metered minutes)"
+        type: choice
+        options: [self-hosted, ubuntu-latest]
+        default: self-hosted
 
 # Required: grant the reusable workflow the permissions it needs.
 # Caller MUST grant these — caller's grant is the upper bound for the
@@ -35,6 +42,8 @@ jobs:
     with:
       app_host: biometric.innovspatial.app
       ghcr_image: ghcr.io/hemanth1986/biometric-sync
+      # Fleet Hetzner runner by default; dispatch can fall back to ubuntu-latest.
+      runner: ${{ inputs.runner || 'self-hosted' }}
     secrets: inherit
 ```
 
@@ -57,15 +66,23 @@ job timeout four times in one afternoon and burned 1,444 of the month's
 2,000 free Actions minutes, freezing all private-repo CI until the next
 billing cycle.
 
-**Self-hosted runner (unmetered minutes):**
+**Self-hosted runner — the fleet DEFAULT (since 2026-08-21):**
 
-Pass `runner: self-hosted` in the caller's `with:` block to run the job on
-the fleet runner (Hetzner) instead of a GitHub-hosted VM — free minutes, and
-it keeps working while the free-tier quota is exhausted. Registration is
-PER-REPO on personal accounts: a repo needs its own runner instance
-registered before `runner: self-hosted` will schedule. The workflow skips
-its Tailscale join step on self-hosted runners automatically (the host is
-already a tailnet member). Operations + new-repo registration procedure:
+Every fleet workflow runs on the Hetzner runner by default (unmetered
+minutes; keeps working while the free-tier quota is exhausted) and carries a
+`workflow_dispatch` `runner` input as the manual fallback: if the runner
+host is down, dispatch the workflow with `runner: ubuntu-latest` to use
+GitHub-hosted (metered) capacity. Push/PR-triggered runs simply queue (up to
+24h) while the runner is offline and start when it returns — GitHub has no
+automatic runner failover.
+
+Registration is PER-REPO on personal accounts. Wiring a NEW repo:
+
+1. `bash scripts/add-runner.sh <repo-name>` (in this repo) — ~60 seconds.
+2. Copy the caller template above (it already carries the runner default).
+
+The workflow skips its Tailscale join step on self-hosted runners
+automatically (the host is already a tailnet member). Full operations doc:
 "Self-hosted runner (Hetzner)" in
 `Infra/Runbooks/Deployment/CI-CD-Deploy-Workflow.md`.
 
