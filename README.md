@@ -23,6 +23,12 @@ permissions:
   contents: read    # actions/checkout
   packages: write   # docker push to GHCR
 
+# Required: one run per ref; queued runs are superseded, a running
+# deploy is never cancelled. See "Caller guardrails" below.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   deploy:
     uses: hemanth1986/gha-workflows/.github/workflows/dokploy-custom-app.yml@main
@@ -31,6 +37,25 @@ jobs:
       ghcr_image: ghcr.io/hemanth1986/biometric-sync
     secrets: inherit
 ```
+
+**Caller guardrails (mandatory, fleet-wide since 2026-08-21):**
+
+- Every workflow — caller or standalone — declares a workflow-level
+  `concurrency` block keyed on `${{ github.workflow }}-${{ github.ref }}`.
+  Deploys/builds/releases use `cancel-in-progress: false` (queue; never kill
+  a running publish). Checks (lint/test/validate) use `true` (a newer push
+  supersedes the in-flight run).
+- Every locally-defined job sets an explicit `timeout-minutes`: 15 for
+  checks, 30 for builds/releases. Jobs that only `uses:` this reusable
+  workflow need no timeout — the reusable job carries `timeout-minutes: 30`.
+- Any `apt-get` call adds
+  `-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30`
+  so a mirror stall fails in seconds instead of hanging.
+
+Why: on 2026-08-19 a stalled apt mirror rode GitHub's 360-minute default
+job timeout four times in one afternoon and burned 1,444 of the month's
+2,000 free Actions minutes, freezing all private-repo CI until the next
+billing cycle.
 
 **Required secrets in caller repo:**
 
