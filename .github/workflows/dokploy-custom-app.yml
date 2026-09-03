@@ -31,6 +31,26 @@ name: Dokploy Custom App Deploy (reusable)
 #   {"status":"ready","version":"<from package.json>","revision":"<APP_REVISION env>","timestamp":"<ISO8601>"}
 # The revision MUST come from an APP_REVISION env baked at build time
 # (this workflow passes it as a docker build-arg automatically).
+#
+# Auth + schema contract (every custom app with its own login MUST implement;
+# fleet parity audit 2026-09-03, forms/runway/biometric/fire/restore/aicosts/
+# files-admin/call-reports):
+#   - Schema ships with code. The container applies its own DB schema at start
+#     (boot-time CREATE TABLE IF NOT EXISTS, or `prisma migrate deploy` in the
+#     entrypoint BEFORE the server listens, see innovrunway/forms
+#     docker-entrypoint.sh). No rollout may depend on a manual migration step;
+#     a failed migration exits non-zero so the deploy fails loudly here.
+#   - The public credential routes (login, forgot-password, reset-password)
+#     are rate-limited per client IP: 10 attempts per 15 minutes, keyed on the
+#     FIRST x-forwarded-for hop (the one Traefik sets), 429 on excess.
+#   - Password reset links: 30-minute expiry, single use, only the SHA-256
+#     hash of the token stored, 5-minute per-account resend cooldown, and the
+#     forgot endpoint always answers with the same generic message.
+#   - If the reset email cannot be sent: delete the token and console.error
+#     the failure (never swallow it). Sent via it@innovspatial.com through
+#     eagle.mxlogin.com:465 (SSL); the SMTP password comes from the Dokploy env.
+#   - No credential literals in the repo compose file: every secret is a
+#     `${VAR}` pass-through from the Dokploy environment.
 
 on:
   workflow_call:
