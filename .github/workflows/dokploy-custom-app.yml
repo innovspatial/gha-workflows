@@ -115,6 +115,10 @@ jobs:
   build-and-deploy:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 30
+    env:
+      # hetzner-org-1/2/3 are three runners on one host and user, so docker login,
+      # buildx and compose would otherwise share ~/.docker/config.json across jobs.
+      DOCKER_CONFIG: ${{ runner.temp }}/docker-config
     concurrency:
       group: deploy-${{ github.repository }}
       cancel-in-progress: false
