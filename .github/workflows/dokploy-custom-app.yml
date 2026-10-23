@@ -2,7 +2,7 @@ name: Dokploy Custom App Deploy (reusable)
 
 # Reusable workflow for any "custom app" deployed via Dokploy on the
 # innovspatial estate. Builds + pushes the GHCR image, triggers the
-# Dokploy compose deploy via Tailscale, then verifies the live app
+# Dokploy compose deploy through its HTTPS API, then verifies the live app
 # is serving the new revision via the /ready endpoint.
 #
 # Caller pattern (in each app repo's .github/workflows/deploy.yml):
@@ -68,6 +68,11 @@ on:
         required: false
         type: string
         default: "100.83.140.7"
+      dokploy_api_url:
+        description: "Dokploy HTTPS API base URL, without a trailing slash. Readiness checks still use the Tailscale IP."
+        required: false
+        type: string
+        default: "https://dokploy.innovspatial.app/api"
       verify_iterations:
         description: "Max poll iterations for verify step. 90 iterations × ~6-11s each = up to ~15 min, sized to cover slow/loaded deploys (e.g. a burst of simultaneous deploys on Contabo)."
         required: false
@@ -115,6 +120,8 @@ jobs:
   build-and-deploy:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 30
+    env:
+      DOKPLOY_API_URL: ${{ inputs.dokploy_api_url }}
     concurrency:
       group: deploy-${{ github.repository }}
       cancel-in-progress: false
@@ -221,7 +228,7 @@ jobs:
         run: |
           compose=$(curl -fsS \
             -H "x-api-key: $DOKPLOY_API_TOKEN" \
-            "http://${{ inputs.contabo_ts_ip }}:3000/api/compose.one?composeId=$DOKPLOY_COMPOSE_ID")
+            "$DOKPLOY_API_URL/compose.one?composeId=$DOKPLOY_COMPOSE_ID")
           auto_deploy=$(echo "$compose" | jq -r '.autoDeploy')
           if [ "$auto_deploy" != "false" ]; then
             echo "Dokploy autoDeploy is $auto_deploy; disabling for GitHub-Actions-owned deploys"
@@ -231,7 +238,7 @@ jobs:
               -H "Content-Type: application/json" \
               -H "x-api-key: $DOKPLOY_API_TOKEN" \
               -d "$payload" \
-              "http://${{ inputs.contabo_ts_ip }}:3000/api/compose.update" >/dev/null
+              "$DOKPLOY_API_URL/compose.update" >/dev/null
           fi
 
       - name: Trigger Dokploy deploy
@@ -251,7 +258,7 @@ jobs:
           # operator to the correct revert target.
           previous_done_json=$(curl -fsS \
             -H "x-api-key: $DOKPLOY_API_TOKEN" \
-            "http://${{ inputs.contabo_ts_ip }}:3000/api/deployment.allByCompose?composeId=$DOKPLOY_COMPOSE_ID" \
+            "$DOKPLOY_API_URL/deployment.allByCompose?composeId=$DOKPLOY_COMPOSE_ID" \
             | jq -c --arg triggered_at "$triggered_at" \
               '[.[] | select(.status == "done" and .createdAt < $triggered_at)] | sort_by(.createdAt) | reverse | .[0] // {}')
           previous_done_id=$(echo "$previous_done_json" | jq -r '.deploymentId // ""')
@@ -266,7 +273,7 @@ jobs:
             '{composeId: $composeId, title: $title, description: $description}')
           body_file=$(mktemp)
           http_code=$(curl -sS -o "$body_file" -w "%{http_code}" -X POST \
-            "http://${{ inputs.contabo_ts_ip }}:3000/api/compose.deploy" \
+            "$DOKPLOY_API_URL/compose.deploy" \
             -H 'Content-Type: application/json' \
             -H "x-api-key: $DOKPLOY_API_TOKEN" \
             -d "$payload")
@@ -324,7 +331,7 @@ jobs:
 
             RESPONSE=$(curl -s --max-time 15 \
               -H "x-api-key: $DOKPLOY_API_TOKEN" \
-              "http://$CONTABO_TS_IP:3000/api/deployment.allByCompose?composeId=$DOKPLOY_COMPOSE_ID" || echo '[]')
+              "$DOKPLOY_API_URL/deployment.allByCompose?composeId=$DOKPLOY_COMPOSE_ID" || echo '[]')
             DEPLOYMENT=$(echo "$RESPONSE" | jq -c --arg triggered_at "$TRIGGERED_AT" '
               if type == "array" then
                 [.[] | select(.createdAt >= $triggered_at)] | sort_by(.createdAt) | reverse | .[0] // empty
