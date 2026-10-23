@@ -173,6 +173,9 @@ jobs:
           # tests the exact bits the deploy will pull.
           APP_IMAGE: ${{ inputs.ghcr_image }}:sha-${{ github.sha }}
           COMPOSE_FILE: ${{ inputs.smoke_compose_path }}
+          # Three runners share one Docker daemon. Each smoke run must own
+          # its containers, network and volumes through teardown.
+          COMPOSE_PROJECT_NAME: smoke-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -e
           if [ ! -f "$COMPOSE_FILE" ]; then
